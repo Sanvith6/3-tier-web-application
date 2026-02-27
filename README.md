@@ -1,6 +1,7 @@
 # 3-Tier CRUD Web Application
 
 Tech stack:
+
 - Frontend: React (Vite) + JavaScript
 - Backend: Node.js + Express.js
 - Database: MySQL
@@ -75,6 +76,7 @@ Frontend default URL: `http://localhost:5173`
 ## Docker Setup (Frontend + Backend + MySQL)
 
 This project includes:
+
 - [docker-compose.yml](c:/project/project-devops/docker-compose.yml)
 - [backend/Dockerfile](c:/project/project-devops/backend/Dockerfile)
 - [frontend/Dockerfile](c:/project/project-devops/frontend/Dockerfile)
@@ -83,6 +85,8 @@ This project includes:
 
 ```powershell
 cd c:\project\project-devops
+Copy-Item .env.example .env
+# Update .env values for your environment
 docker compose up --build -d
 ```
 
@@ -105,5 +109,6 @@ docker compose down -v
 ```
 
 Notes:
+
 - `db/schema.sql` runs automatically on first MySQL startup.
-- Default MySQL root password in compose is `rootpassword`. Change it in [docker-compose.yml](c:/project/project-devops/docker-compose.yml) for real use.
+- Compose values are driven by root `.env` (see [.env.example](c:/project/project-devops/.env.example)).

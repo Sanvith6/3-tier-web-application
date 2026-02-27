@@ -1,0 +1,314 @@
+name: CI — Quality Checks
+
+# ─── WHEN DOES THIS RUN? ───────────────────────────────────────────────────────
+# On every push to main/develop AND on every Pull Request targeting main/develop
+# This ensures code is always checked before it can be merged
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# ─── ENVIRONMENT ──────────────────────────────────────────────────────────────
+env:
+  NODE_VERSION: "20"
+
+# ─── JOBS ─────────────────────────────────────────────────────────────────────
+# Each job runs in PARALLEL by default (unless 'needs:' is specified)
+# All jobs must pass for the CI to be marked green ✅
+jobs:
+  # ─── JOB 1: LINT ────────────────────────────────────────────────────────────
+  # What: Runs ESLint on backend and frontend JavaScript code
+  # Why:  Catches code quality issues, bad patterns, and unused variables
+  #       BEFORE they get merged. Blocks the PR if lint fails.
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint backend
+        run: npm run lint
+        working-directory: backend
+
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+
+  # ─── JOB 2: FORMAT CHECK ────────────────────────────────────────────────────
+  # What: Runs Prettier to check code formatting (spaces, quotes, line breaks)
+  # Why:  Enforces a consistent code style across the team.
+  #       Fails if any file is not properly formatted.
+  format:
+    name: 🎨 Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Check backend formatting
+        run: npm run format
+        working-directory: backend
+
+      - name: Check frontend formatting
+        run: npm run format
+        working-directory: frontend
+
+  # ─── JOB 3: TEST ────────────────────────────────────────────────────────────
+  # What: Runs all unit tests with coverage reporting
+  # Why:  Verifies that the application logic works correctly.
+  #       The coverage threshold (70%) means CI fails if too little code is tested.
+  test:
+    name: 🧪 Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run backend tests with coverage
+        # --coverage flag generates coverage report AND enforces coverageThreshold
+        # defined in jest.config.cjs (70% threshold — fails if below!)
+        run: npm test -- --coverage
+        working-directory: backend
+
+      - name: Run frontend tests with coverage
+        # Vitest reads coverage config from vite.config.js
+        run: npx vitest run --coverage
+        working-directory: frontend
+
+      - name: Upload backend coverage report
+        # Saves coverage report as a downloadable artifact in GitHub Actions UI
+        uses: actions/upload-artifact@v4
+        if: always() # Upload even if tests failed, so you can inspect the report
+        with:
+          name: backend-coverage-report
+          path: backend/coverage/
+          retention-days: 7
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-report
+          path: frontend/coverage/
+          retention-days: 7
+
+  # ─── JOB 4: SECURITY — DEPENDENCY AUDIT ────────────────────────────────────
+  # What: Runs `npm audit` to check for known vulnerabilities in npm packages
+  # Why:  npm packages can have published CVEs (security holes).
+  #       This job blocks merges if HIGH or CRITICAL vulnerabilities are found.
+  dependency-audit:
+    name: 🛡️ Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit backend dependencies
+        # --audit-level=high means: fail only for HIGH and CRITICAL severity issues
+        # (ignore low/moderate to reduce noise)
+        run: npm audit --audit-level=high
+        working-directory: backend
+        continue-on-error: false
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+        working-directory: frontend
+        continue-on-error: false
+
+  # ─── JOB 5: DOCKERFILE LINT ─────────────────────────────────────────────────
+  # What: Runs Hadolint — a linter specifically for Dockerfiles
+  # Why:  Catches Dockerfile anti-patterns like:
+  #         - Running as root (security risk)
+  #         - Using `latest` image tags (makes builds non-reproducible)
+  #         - Missing HEALTHCHECK
+  #         - Inefficient layer ordering (hurts build cache)
+  dockerfile-lint:
+    name: 🐳 Dockerfile Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint backend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+          config: .hadolint.yaml
+          # Output in TTY format — most readable in CI logs
+          format: tty
+
+      - name: Lint frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+          config: .hadolint.yaml
+          format: tty
+
+  # ─── JOB 6: DOCKER BUILD ────────────────────────────────────────────────────
+  # What: Actually builds both Docker images (does NOT push — just validates)
+  # Why:  Catches build errors early (missing files, broken COPY paths, etc.)
+  #       Runs on every PR so you know the image builds before merging.
+  docker-build:
+    name: 🏗️ Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        # Buildx gives us faster builds with layer caching support
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          dockerfile: ./backend/Dockerfile
+          push: false # Only build, don't push (CD pipeline handles pushing)
+          tags: crud-backend:ci-test
+          cache-from: type=gha # Use GitHub Actions cache to speed up builds
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          dockerfile: ./frontend/Dockerfile
+          push: false
+          tags: crud-frontend:ci-test
+          build-args: |
+            VITE_API_URL=/api
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── JOB 7: SECURITY — IMAGE SCAN (Trivy) ───────────────────────────────────
+  # What: Scans built Docker images for OS-level and package-level CVEs
+  # Why:  Even if your code is fine, the BASE IMAGE (node:20-alpine, nginx:1.27)
+  #       might have known security vulnerabilities. Trivy detects these.
+  # Note: This runs AFTER docker-build (needs: docker-build) because it needs
+  #       the image to be built first.
+  trivy-scan:
+    name: 🔐 Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: docker-build # Wait for docker-build job to complete first
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          dockerfile: ./backend/Dockerfile
+          push: false
+          load: true # Load into local Docker daemon so Trivy can scan it
+          tags: crud-backend:scan
+          cache-from: type=gha
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: crud-backend:scan
+          format: table # Human-readable table output in CI logs
+          exit-code: 1 # Fail the job if vulnerabilities are found!
+          ignore-unfixed: true # Skip vulns with no fix available yet
+          severity: CRITICAL,HIGH # Only fail on CRITICAL and HIGH severity
+
+      - name: Build frontend image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          dockerfile: ./frontend/Dockerfile
+          push: false
+          load: true
+          tags: crud-frontend:scan
+          build-args: |
+            VITE_API_URL=/api
+          cache-from: type=gha
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: crud-frontend:scan
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results (SARIF format for GitHub Security tab)
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          image-ref: crud-backend:scan
+          format: sarif # SARIF format integrates with GitHub Security tab
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

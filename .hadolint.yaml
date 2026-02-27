@@ -1,0 +1,17 @@
+# Hadolint — Dockerfile linter configuration
+# Docs: https://github.com/hadolint/hadolint
+
+# Rules to ignore (with justification)
+ignore:
+  - DL3008 # apt-get: pinning versions is too restrictive for alpine-based images
+  - DL3018 # apk: no version pinning — acceptable for our build stage images
+
+# Treat these as warnings (not errors) to avoid blocking CI on minor style issues
+# Un-comment to demote specific rules:
+# failure-threshold: warning
+
+# Trusting our base images — we control which registries we allow
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - gcr.io

@@ -1,0 +1,29 @@
+{
+  "name": "project-devops",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
+    "test": "npm test --prefix backend && npm test --prefix frontend",
+    "format": "npm run format --prefix backend && npm run format --prefix frontend",
+    "format:fix": "npm run format:fix --prefix backend && npm run format:fix --prefix frontend",
+    "precommit": "lint-staged"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "backend/{src,tests}/**/*.{js,cjs,mjs}": [
+      "npm run lint:fix --prefix backend"
+    ],
+    "frontend/{src,tests}/**/*.{js,jsx,mjs,cjs}": [
+      "npm run lint:fix --prefix frontend"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

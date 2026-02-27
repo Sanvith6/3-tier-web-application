@@ -3,19 +3,35 @@ const productRepository = require('../repositories/productRepository');
 function validateProductInput(payload) {
   const errors = [];
 
-  if (!payload.name || typeof payload.name !== 'string' || payload.name.trim().length === 0) {
+  if (
+    !payload.name ||
+    typeof payload.name !== 'string' ||
+    payload.name.trim().length === 0
+  ) {
     errors.push('name is required');
   }
 
-  if (payload.price === undefined || payload.price === null || Number(payload.price) < 0) {
+  if (
+    payload.price === undefined ||
+    payload.price === null ||
+    Number(payload.price) < 0
+  ) {
     errors.push('price must be a non-negative number');
   }
 
-  if (!payload.category || typeof payload.category !== 'string' || payload.category.trim().length === 0) {
+  if (
+    !payload.category ||
+    typeof payload.category !== 'string' ||
+    payload.category.trim().length === 0
+  ) {
     errors.push('category is required');
   }
 
-  if (payload.stock === undefined || payload.stock === null || Number(payload.stock) < 0) {
+  if (
+    payload.stock === undefined ||
+    payload.stock === null ||
+    Number(payload.stock) < 0
+  ) {
     errors.push('stock must be a non-negative integer');
   }
 

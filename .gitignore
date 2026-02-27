@@ -5,3 +5,5 @@ frontend/dist/
 .env
 frontend/.env
 backend/.env
+backend/coverage/
+frontend/coverage/

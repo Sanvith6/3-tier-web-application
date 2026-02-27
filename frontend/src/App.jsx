@@ -27,7 +27,9 @@ function App() {
       const response = await axios.get(`${API_URL}/products`);
       setProducts(response.data);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Failed to load products');
+      setError(
+        requestError.response?.data?.message || 'Failed to load products'
+      );
     } finally {
       setLoading(false);
     }
@@ -78,7 +80,9 @@ function App() {
       resetForm();
       fetchProducts();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Failed to save product');
+      setError(
+        requestError.response?.data?.message || 'Failed to save product'
+      );
     }
   }
 
@@ -92,7 +96,9 @@ function App() {
       }
       fetchProducts();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Failed to delete product');
+      setError(
+        requestError.response?.data?.message || 'Failed to delete product'
+      );
     }
   }
 
@@ -139,7 +145,9 @@ function App() {
           />
 
           <div className="actions">
-            <button type="submit">{isEditing ? 'Update Product' : 'Add Product'}</button>
+            <button type="submit">
+              {isEditing ? 'Update Product' : 'Add Product'}
+            </button>
             {isEditing && (
               <button type="button" className="ghost" onClick={resetForm}>
                 Cancel
@@ -182,10 +190,17 @@ function App() {
                     <td>${Number(product.price).toFixed(2)}</td>
                     <td>{product.stock}</td>
                     <td>
-                      <button type="button" onClick={() => startEditing(product)}>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(product)}
+                      >
                         Edit
                       </button>
-                      <button type="button" className="danger" onClick={() => handleDelete(product.id)}>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => handleDelete(product.id)}
+                      >
                         Delete
                       </button>
                     </td>
