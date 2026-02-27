@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  security-events: write
+
 # ─── ENVIRONMENT ──────────────────────────────────────────────────────────────
 env:
   NODE_VERSION: "20"
@@ -222,7 +226,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          dockerfile: ./backend/Dockerfile
+          file: ./backend/Dockerfile
           push: false # Only build, don't push (CD pipeline handles pushing)
           tags: crud-backend:ci-test
           cache-from: type=gha # Use GitHub Actions cache to speed up builds
@@ -232,7 +236,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          dockerfile: ./frontend/Dockerfile
+          file: ./frontend/Dockerfile
           push: false
           tags: crud-frontend:ci-test
           build-args: |
@@ -261,7 +265,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          dockerfile: ./backend/Dockerfile
+          file: ./backend/Dockerfile
           push: false
           load: true # Load into local Docker daemon so Trivy can scan it
           tags: crud-backend:scan
@@ -280,7 +284,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          dockerfile: ./frontend/Dockerfile
+          file: ./frontend/Dockerfile
           push: false
           load: true
           tags: crud-frontend:scan
@@ -308,7 +312,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
